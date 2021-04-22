@@ -310,12 +310,12 @@ class Actions:
     """
     # Directions
     _directions = {Directions.WEST:  (-1, 0),
-                   Directions.STOP:  (0, 0),
                    Directions.EAST:  (1, 0),
                    Directions.NORTH: (0, 1),
-                   Directions.SOUTH: (0, -1)}
+                   Directions.SOUTH: (0, -1),
+                   Directions.STOP:  (0, 0)}
 
-    _directionsAsList = [('West', (-1, 0)), ('Stop', (0, 0)), ('East', (1, 0)), ('North', (0, 1)), ('South', (0, -1))]
+    _directionsAsList = [('West', (-1, 0)), ('East', (1, 0)), ('North', (0, 1)), ('South', (0, -1)), ('Stop', (0, 0))]
 
     TOLERANCE = .001
 

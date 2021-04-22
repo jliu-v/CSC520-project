@@ -170,143 +170,111 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
     """
 
     def generateMaxNode(self, alpha, beta, state, depth):
-        # if current state is win or lose, return game state score
-        if state.isWin() or state.isLose():
-            return state.getScore()
+        print("max")
+        # if current state is winning, return game state score
+        if state.gameState.isWin():
+            state.score = state.gameState.getScore()
+            return state
 
         # if reached depth limit, get min predicted score
         if depth == 0:
-            predicted_scores = scoreEvaluationFunction(state)
-            return np.nanmin(predicted_scores)
-
-        max_score = float('-inf')
+            predicted_scores = scoreEvaluationFunction(state.gameState)
+            state.score = np.nanmin(predicted_scores)
+            print("depth limit action: ", state.action, " score: ", state.score)
+            return state
 
         # get legal actions of current state
-        for action in state.getLegalActions():
-            new_score = self.generateMinNode(alpha, beta, state.generateSuccessor(self.index, action), depth - 1)
-            max_score = max(max_score, new_score)
+        for action in state.gameState.getLegalActions():
+            # new_state = StateNode(action, float('inf'), state.gameState.generatePacmanSuccessor(action))
+            new_state = StateNode(action, float('inf'), state.gameState.generatePacmanSuccessor(action))
+            new_state = self.generateMinNode(alpha, beta, new_state, depth-1)
+            # print("successor")
+            # print("action: ", action, " score: ", new_state.score)
+            state.successors.append(new_state)
+            if new_state.score > state.score:
+                state.score = new_state.score
 
             # prune
-            if max_score >= beta:
-                return max_score
+            if state.score >= beta:
+                print("pruned ", state.score, " >= ", beta)
+                return state
 
             # set alpha if not pruned
-            alpha = max(max_score, alpha)
+            alpha = max(state.score, alpha)
 
-        return max_score
-
-        # # if current state is win or lose, return game state score
-        # if state.gameState.isWin() or state.gameState.isLose():
-        #     state.score = state.gameState.getScore()
-        #     return state
-        #
-        # # if reached depth limit, get min predicted score
-        # if depth == 0:
-        #     predicted_scores = scoreEvaluationFunction(state.gameState)
-        #     state.score = np.nanmin(predicted_scores)
-        #     # print("depth limit action: ", state.action, " score: ", state.score)
-        #     return state
-        #
-        # # get legal actions of current state
-        # for action in state.gameState.getLegalActions():
-        #     new_state = StateNode(action, float('inf'), state.gameState.generatePacmanSuccessor(action))
-        #     new_state = self.generateMinNode(alpha, beta, new_state, depth-1)
-        #     # print("successor")
-        #     # print("action: ", action, " score: ", new_state.score)
-        #     state.successors.append(new_state)
-        #     if new_state.score > state.score:
-        #         state.score = new_state.score
-        #
-        #     # prune
-        #     if state.score >= beta:
-        #         # print("pruned ", state.score, " >= ", beta)
-        #         return state
-        #
-        #     # set alpha if not pruned
-        #     alpha = max(state.score, alpha)
-        # # for s in state.successors:
-        # #     print("Successor action: ", s.action, " score: ", s.score)
-        # return state
+        for s in state.successors:
+            print("Successor action: ", s.action, " score: ", s.score)
+        return state
 
     def generateMinNode(self, alpha, beta, state, depth):
-        # if current state is win or lose, return game state score
-        if state.isWin() or state.isLose():
-            return state.getScore()
+        print("min")
+        # if current state is winning, return game state score
+        if state.gameState.isWin():
+            state.score = state.gameState.getScore()
+            return state
 
         # if reached depth limit, get max predicted score
         if depth == 0:
-            predicted_scores = scoreEvaluationFunction(state)
-            return np.nanmax(predicted_scores)
-
-        min_score = float("inf")
+            predicted_scores = scoreEvaluationFunction(state.gameState)
+            state.score = np.nanmax(predicted_scores)
+            print("depth limit score ", state.score)
+            return state
 
         # get legal actions of current state
-        for action in state.getLegalActions():
-            new_score = self.generateMaxNode(alpha, beta, state.generateSuccessor(self.index, action), depth - 1)
-            min_score = min(min_score, new_score)
+        for action in state.gameState.getLegalActions():
+            new_state = StateNode(action, float('-inf'), state.gameState.generatePacmanSuccessor(action))
+            new_state = self.generateMaxNode(alpha, beta, new_state, depth - 1)
+            # print("successor")
+            # print("action: ", action, " score: ", new_state.score)
+            state.successors.append(new_state)
+            if new_state.score < state.score:
+                state.score = new_state.score
 
             # prune
-            if min_score <= alpha:
-                return min_score
+            if state.score <= alpha:
+                print("pruned ", state.score, " <= ", alpha)
+                return state
 
             # set beta if not pruned
-            beta = min(min_score, beta)
+            beta = min(state.score, beta)
+        for s in state.successors:
+            print("Successor action: ", s.action, " score: ", s.score)
+        return state
 
-        return min_score
-        # # if current state is win or lose, return game state score
-        # if state.gameState.isWin() or state.gameState.isLose():
-        #     state.score = state.gameState.getScore()
-        #     return state
-        #
-        # # if reached depth limit, get max predicted score
-        # if depth == 0:
-        #     predicted_scores = scoreEvaluationFunction(state.gameState)
-        #     state.score = np.nanmax(predicted_scores)
-        #     # print("depth limit score ", state.score)
-        #     return state
-        #
-        # # get legal actions of current state
-        # for action in state.gameState.getLegalActions():
-        #     new_state = StateNode(action, float('-inf'), state.gameState.generatePacmanSuccessor(action))
-        #     new_state = self.generateMaxNode(alpha, beta, new_state, depth - 1)
-        #     # print("successor")
-        #     # print("action: ", action, " score: ", new_state.score)
-        #     state.successors.append(new_state)
-        #     if new_state.score < state.score:
-        #         state.score = new_state.score
-        #
-        #     # prune
-        #     if state.score <= alpha:
-        #         # print("pruned ", state.score, " <= ", alpha)
-        #         return state
-        #
-        #     # set beta if not pruned
-        #     beta = min(state.score, beta)
-        # for s in state.successors:
-        #     print("Successor action: ", s.action, " score: ", s.score)
-        # return state
+    def generatePath(self, node):
+        is_max = True
+
+        while node.successors:
+            if is_max:
+                max_state = max(node.successors, key=lambda s: s.score)
+                self.path.append(max_state.action)
+                node = max_state
+            else:
+                min_state = min(node.successors, key=lambda s: s.score)
+                node = min_state
+            is_max = not is_max
 
     def getAction(self, gameState):
         """
         Returns the minimax action
         """
-        # Collect legal moves and successor states
-        legal_moves = gameState.getLegalActions()
+        print("path", self.path)
+        # if path is empty, generate tree and get path
+        if not self.path:
+            root = StateNode(Directions.STOP, float('-inf'), gameState)
+            tree = self.generateMaxNode(float('-inf'), float('inf'), root, self.depth*2)
 
-        # Choose one of the best actions
-        scores = [self.generateMinNode(float('-inf'), float('inf'), gameState.generateSuccessor(self.index, action), self.depth*2 - 1)
-                  for action in legal_moves]
-        best_score = max(scores)
-        best_indices = [index for index in range(len(scores)) if scores[index] == best_score]
-        chosen_index = random.choice(best_indices)  # Pick randomly among the best
+            self.generatePath(tree)
 
-        # don't allow stop unless it's the only best move
-        if legal_moves[chosen_index] == 'Stop' and len(best_indices) > 1:
-            best_indices.remove(chosen_index)
-            chosen_index = random.choice(best_indices)  # Randomly pick best without stop
+            # max_state = max(tree.successors, key=lambda s: s.score)
+            # print("action: ", max_state.action)
+            # return max_state.action
 
-        return legal_moves[chosen_index]
+        return self.path.pop(0)
 
+
+        # print(scoreEvaluationFunction(gameState))
+        # util.raiseNotDefined()
 
 class ExpectimaxAgent(MultiAgentSearchAgent):
     """
