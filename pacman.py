@@ -287,6 +287,12 @@ class ClassicGameRules:
         agents = [pacmanAgent] + ghostAgents[:layout.getNumGhosts()]
         initState = GameState()
         initState.initialize(layout, len(ghostAgents))
+        ######
+        # TODO
+        from contrib.util import state_to_obs_tensor
+        observation_shape = state_to_obs_tensor(initState).shape
+        agents[0].create_rl_model(observation_shape, network='my_cnn', lr=1e-3, gamma=1.0, param_noise=False)
+        ######
         game = Game(agents, display, self, catchExceptions=catchExceptions)
         game.state = initState
         self.initialState = initState.deepCopy()

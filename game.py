@@ -762,6 +762,20 @@ class Game:
             if _BOINC_ENABLED:
                 boinc.set_fraction_done(self.getProgress())
 
+            # add replay buffer for RL training
+            if "replay_buffer" in dir(agent):
+                from contrib.util import state_to_obs_tensor
+                # last_reward = 0
+                # if len(agent.replay_buffer):
+                #     last_reward = agent.replay_buffer[-1][2]
+                # reward = self.state.getScore() - last_reward
+                reward = self.state.getScore()
+                obs0 = state_to_obs_tensor(observation)
+                obs1 = state_to_obs_tensor(self.state)
+                act = agent.action_mapping[action]
+                replay_buffer = (obs0, act, reward, obs1, self.gameOver)
+                agent.replay_buffer.append(replay_buffer)
+
         # inform a learning agent of the game result
         for agentIndex, agent in enumerate(self.agents):
             if "final" in dir(agent):
