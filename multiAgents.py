@@ -171,6 +171,35 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
     Minimax agent with alpha-beta pruning
     """
 
+    def __init__(self, **kwargs):
+        super(AlphaBetaAgent, self).__init__(**kwargs)
+
+        self.rl_model = None        # TODO
+        self.replay_buffer = []     # TODO
+
+        from game import Actions
+        self.action_mapping = {v[0]: i for i, v in enumerate(Actions._directionsAsList)}
+        self.action_mapping_reverse = {v: k for k, v in self.action_mapping.items()}
+
+    def create_rl_model(self, observation_shape, network='cnn', lr=1e-3, gamma=1.0, param_noise=False):
+        from baselines.deepq.deepq_learner import DEEPQ
+        from baselines.deepq.models import build_q_func
+        q_func = build_q_func(network)
+
+        self.rl_model = DEEPQ(
+            q_func=q_func,
+            observation_shape=observation_shape,
+            num_actions=len(self.action_mapping),
+            lr=lr,
+            grad_norm_clipping=10,
+            gamma=gamma,
+            param_noise=param_noise
+        )
+
+    def train_rl_model(self):
+        # TODO
+        pass
+
     def generateMaxNode(self, alpha, beta, state, depth):
         """
         Generate a max node in the tree
