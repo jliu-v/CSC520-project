@@ -16,6 +16,7 @@ from util import manhattanDistance
 from game import Directions
 import random, util
 import numpy as np
+import tensorflow as tf
 from operator import attrgetter
 
 
@@ -172,12 +173,25 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
     def __init__(self, **kwargs):
         super(AlphaBetaAgent, self).__init__(**kwargs)
 
-        self.rl_model = None        # TODO
-        self.replay_buffer = []     # TODO
+        self.rl_model = None
+        self.replay_buffer = None
 
         from game import Actions
         self.action_mapping = {v[0]: i for i, v in enumerate(Actions._directionsAsList)}
         self.action_mapping_reverse = {v: k for k, v in self.action_mapping.items()}
+
+    def evaluation_fn(self, currentGameState):
+        from contrib.util import state_to_obs_tensor
+        obs = state_to_obs_tensor(currentGameState)
+        scores = self.rl_model.q_network(np.expand_dims(obs, axis=0))[0].numpy()
+
+        legalMoves = currentGameState.getLegalActions()
+
+        for action in self.action_mapping.keys():
+            if action not in legalMoves:
+                scores[self.action_mapping[action]] = np.nan
+
+        return scores
 
     def create_rl_model(self, observation_shape, network='cnn', lr=1e-3, gamma=1.0, param_noise=False):
         from baselines.deepq.deepq_learner import DEEPQ
@@ -194,9 +208,18 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
             param_noise=param_noise
         )
 
-    def train_rl_model(self):
-        # TODO
-        pass
+    def create_replay_buffer(self, buffer_size):
+        from baselines.deepq.replay_buffer import ReplayBuffer
+        self.replay_buffer = ReplayBuffer(buffer_size)
+
+    def train_rl_model(self, batch_size):
+        obses_t, actions, rewards, obses_tp1, dones = self.replay_buffer.sample(batch_size)
+        weights, batch_idxes = np.ones_like(rewards), None
+        obses_t, obses_tp1 = tf.constant(obses_t), tf.constant(obses_tp1)
+        actions, rewards, dones = tf.constant(actions), tf.constant(rewards), tf.constant(dones)
+        weights = tf.constant(weights)
+        td_errors = self.rl_model.train(obses_t, actions, rewards, obses_tp1, dones, weights)
+        return td_errors
 
     def generateMaxNode(self, alpha, beta, state, depth):
         # if current state is win or lose, return game state score
@@ -205,7 +228,7 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
 
         # if reached depth limit, get min predicted score
         if depth == 0:
-            predicted_scores = scoreEvaluationFunction(state)
+            predicted_scores = self.evaluation_fn(state)
             return np.nanmin(predicted_scores)
 
         max_score = float('-inf')
@@ -224,39 +247,6 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
 
         return max_score
 
-        # # if current state is win or lose, return game state score
-        # if state.gameState.isWin() or state.gameState.isLose():
-        #     state.score = state.gameState.getScore()
-        #     return state
-        #
-        # # if reached depth limit, get min predicted score
-        # if depth == 0:
-        #     predicted_scores = scoreEvaluationFunction(state.gameState)
-        #     state.score = np.nanmin(predicted_scores)
-        #     # print("depth limit action: ", state.action, " score: ", state.score)
-        #     return state
-        #
-        # # get legal actions of current state
-        # for action in state.gameState.getLegalActions():
-        #     new_state = StateNode(action, float('inf'), state.gameState.generatePacmanSuccessor(action))
-        #     new_state = self.generateMinNode(alpha, beta, new_state, depth-1)
-        #     # print("successor")
-        #     # print("action: ", action, " score: ", new_state.score)
-        #     state.successors.append(new_state)
-        #     if new_state.score > state.score:
-        #         state.score = new_state.score
-        #
-        #     # prune
-        #     if state.score >= beta:
-        #         # print("pruned ", state.score, " >= ", beta)
-        #         return state
-        #
-        #     # set alpha if not pruned
-        #     alpha = max(state.score, alpha)
-        # # for s in state.successors:
-        # #     print("Successor action: ", s.action, " score: ", s.score)
-        # return state
-
     def generateMinNode(self, alpha, beta, state, depth):
         # if current state is win or lose, return game state score
         if state.isWin() or state.isLose():
@@ -264,7 +254,7 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
 
         # if reached depth limit, get max predicted score
         if depth == 0:
-            predicted_scores = scoreEvaluationFunction(state)
+            predicted_scores = self.evaluation_fn(state)
             return np.nanmax(predicted_scores)
 
         min_score = float("inf")
@@ -282,38 +272,6 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
             beta = min(min_score, beta)
 
         return min_score
-        # # if current state is win or lose, return game state score
-        # if state.gameState.isWin() or state.gameState.isLose():
-        #     state.score = state.gameState.getScore()
-        #     return state
-        #
-        # # if reached depth limit, get max predicted score
-        # if depth == 0:
-        #     predicted_scores = scoreEvaluationFunction(state.gameState)
-        #     state.score = np.nanmax(predicted_scores)
-        #     # print("depth limit score ", state.score)
-        #     return state
-        #
-        # # get legal actions of current state
-        # for action in state.gameState.getLegalActions():
-        #     new_state = StateNode(action, float('-inf'), state.gameState.generatePacmanSuccessor(action))
-        #     new_state = self.generateMaxNode(alpha, beta, new_state, depth - 1)
-        #     # print("successor")
-        #     # print("action: ", action, " score: ", new_state.score)
-        #     state.successors.append(new_state)
-        #     if new_state.score < state.score:
-        #         state.score = new_state.score
-        #
-        #     # prune
-        #     if state.score <= alpha:
-        #         # print("pruned ", state.score, " <= ", alpha)
-        #         return state
-        #
-        #     # set beta if not pruned
-        #     beta = min(state.score, beta)
-        # for s in state.successors:
-        #     print("Successor action: ", s.action, " score: ", s.score)
-        # return state
 
     def getAction(self, gameState):
         """
@@ -364,3 +322,4 @@ def betterEvaluationFunction(currentGameState):
 
 # Abbreviation
 better = betterEvaluationFunction
+

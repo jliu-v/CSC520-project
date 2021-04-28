@@ -37,13 +37,15 @@ def my_nature_cnn(input_shape, **conv_kwargs):
     """
     CNN from Nature paper.
     """
-    print('input shape is {}'.format(input_shape))
     x_input = tf.keras.Input(shape=input_shape, dtype=tf.float32)
     h = x_input
     h = conv('c1', nf=8, rf=4, stride=1, activation='relu', init_scale=np.sqrt(2))(h)
     h = tf.keras.layers.Flatten()(h)
     h = tf.keras.layers.Dense(units=512, kernel_initializer=ortho_init(np.sqrt(2)),
                               name='fc1', activation='relu')(h)
+    # delta = tf.sparse.SparseTensor(indices=[-1], values=[-10], dense_shape=tf.shape(h))
+    # h = h + delta
+    h = tf.keras.layers.Softmax(h)
     network = tf.keras.Model(inputs=[x_input], outputs=[h])
     return network
 
