@@ -102,7 +102,7 @@ def scoreEvaluationFunction(currentGameState, agentIndex):
     (not reflex agents).
     """
     directionsList = ['West', 'East', 'North', 'South']
-    legalMoves = currentGameState.getLegalActions()
+    legalMoves = currentGameState.getLegalActions(agentIndex)
 
     scores = []
     for action in directionsList:
@@ -157,10 +157,10 @@ class AlphaBetaGhostAgent(MultiAgentSearchAgent):
             state.score = state.gameState.getScore()
             return state
 
-        # if reached depth limit, get min predicted score
+        # if reached depth limit, get max predicted score
         if depth == 0:
             predicted_scores = scoreEvaluationFunction(state.gameState, 0)
-            state.score = np.nanmin(predicted_scores)
+            state.score = np.nanmax(predicted_scores)
             # print("depth limit action: ", state.action, " score: ", state.score)
             return state
 
@@ -190,10 +190,11 @@ class AlphaBetaGhostAgent(MultiAgentSearchAgent):
             state.score = state.gameState.getScore()
             return state
 
-        # if reached depth limit, get max predicted score
+        # if reached depth limit, get min predicted score
         if depth == 0:
-            predicted_scores = scoreEvaluationFunction(state.gameState, self.index)
-            state.score = np.nanmax(predicted_scores)
+            predicted_scores = scoreEvaluationFunction(state.gameState, 1)
+            state.score = np.nanmin(predicted_scores)
+            # print("depth limit score ", state.score)
             return state
 
         # get legal actions of current state
@@ -221,6 +222,8 @@ class AlphaBetaGhostAgent(MultiAgentSearchAgent):
         is_max = False
 
         while node.successors:
+            scores = [s.score for s in node.successors]
+            print("ghost:", scores)
             if is_max:
                 max_state = max(node.successors, key=lambda s: s.score)
                 node = max_state
@@ -228,6 +231,11 @@ class AlphaBetaGhostAgent(MultiAgentSearchAgent):
                 min_state = min(node.successors, key=lambda s: s.score)
                 self.path.append(min_state.action)
                 node = min_state
+                # min_score = min(scores)
+                # best_indices = [index for index in range(len(scores)) if scores[index] == min_score]
+                # chosen_index = random.choice(best_indices)  # Pick randomly among the best
+                # node = node.successors[chosen_index]
+                # self.path.append(node.action)
             is_max = not is_max
 
     def getAction(self, gameState):
