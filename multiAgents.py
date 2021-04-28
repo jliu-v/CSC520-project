@@ -16,6 +16,7 @@ from util import manhattanDistance
 from game import Directions
 import random, util
 import numpy as np
+import tensorflow as tf
 from operator import attrgetter
 
 
@@ -174,12 +175,25 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
     def __init__(self, **kwargs):
         super(AlphaBetaAgent, self).__init__(**kwargs)
 
-        self.rl_model = None        # TODO
-        self.replay_buffer = []     # TODO
+        self.rl_model = None
+        self.replay_buffer = None
 
         from game import Actions
         self.action_mapping = {v[0]: i for i, v in enumerate(Actions._directionsAsList)}
         self.action_mapping_reverse = {v: k for k, v in self.action_mapping.items()}
+
+    def evaluation_fn(self, currentGameState):
+        from contrib.util import state_to_obs_tensor
+        obs = state_to_obs_tensor(currentGameState)
+        scores = self.rl_model.q_network(np.expand_dims(obs, axis=0))[0].numpy()
+
+        legalMoves = currentGameState.getLegalActions()
+
+        for action in self.action_mapping.keys():
+            if action not in legalMoves:
+                scores[self.action_mapping[action]] = np.nan
+
+        return scores
 
     def create_rl_model(self, observation_shape, network='cnn', lr=1e-3, gamma=1.0, param_noise=False):
         from baselines.deepq.deepq_learner import DEEPQ
@@ -196,9 +210,18 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
             param_noise=param_noise
         )
 
-    def train_rl_model(self):
-        # TODO
-        pass
+    def create_replay_buffer(self, buffer_size):
+        from baselines.deepq.replay_buffer import ReplayBuffer
+        self.replay_buffer = ReplayBuffer(buffer_size)
+
+    def train_rl_model(self, batch_size):
+        obses_t, actions, rewards, obses_tp1, dones = self.replay_buffer.sample(batch_size)
+        weights, batch_idxes = np.ones_like(rewards), None
+        obses_t, obses_tp1 = tf.constant(obses_t), tf.constant(obses_tp1)
+        actions, rewards, dones = tf.constant(actions), tf.constant(rewards), tf.constant(dones)
+        weights = tf.constant(weights)
+        td_errors = self.rl_model.train(obses_t, actions, rewards, obses_tp1, dones, weights)
+        return td_errors
 
     def generateMaxNode(self, alpha, beta, state, depth):
         """
@@ -435,3 +458,4 @@ def betterEvaluationFunction(currentGameState):
 
 # Abbreviation
 better = betterEvaluationFunction
+

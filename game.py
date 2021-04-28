@@ -25,6 +25,7 @@ import time
 import os
 import traceback
 import sys
+import numpy as np
 
 #######################
 # Parts worth reading #
@@ -787,9 +788,15 @@ class Game:
                 reward = self.state.getScore()
                 obs0 = state_to_obs_tensor(observation)
                 obs1 = state_to_obs_tensor(self.state)
-                act = agent.action_mapping[action]
-                replay_buffer = (obs0, act, reward, obs1, self.gameOver)
-                agent.replay_buffer.append(replay_buffer)
+                act = np.array(agent.action_mapping[action])
+                agent.replay_buffer.add(obs0, act, reward, obs1, self.gameOver)
+                # TODO: change 1000 to configurable batch_size
+                batch_size = 1000
+                if agent.replay_buffer._next_idx % batch_size == 0:
+                    e = []
+                    for _ in range(5):
+                        e.append(agent.train_rl_model(batch_size))
+                    print("errpr:", np.mean(e), "game_score/reward: ", reward)
 
         # inform a learning agent of the game result
         for agentIndex, agent in enumerate(self.agents):
