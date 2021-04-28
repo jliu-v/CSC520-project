@@ -80,7 +80,7 @@ class ReflexAgent(Agent):
         return successorGameState.getScore()
 
 
-def scoreEvaluationFunction(currentGameState):
+def scoreEvaluationFunction(currentGameState, agentIndex):
     """
     This default evaluation function just returns the score of the state.
     The score is the same one displayed in the Pacman GUI.
@@ -95,7 +95,7 @@ def scoreEvaluationFunction(currentGameState):
     scores = []
     for action in directionsList:
         if action in legalMoves:
-            successorGameState = currentGameState.generatePacmanSuccessor(action)
+            successorGameState = currentGameState.generateSuccessor(agentIndex, action)
             scores.append(successorGameState.getScore())
         else:
             scores.append(np.nan)
@@ -127,9 +127,9 @@ class MultiAgentSearchAgent(Agent):
     is another abstract class.
     """
 
-    def __init__(self, evalFn = 'scoreEvaluationFunction', depth = '2'):
+    def __init__(self, evalFn = 'scoreEvaluationFunction', depth = '3'):
         self.index = 0 # Pacman is always agent index 0
-        self.evaluationFunction = util.lookup(evalFn, globals())
+        # self.evaluationFunction = util.lookup(evalFn, globals())
         self.depth = int(depth)
         self.path = []
 
@@ -202,14 +202,14 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
 
         # if reached depth limit, get min predicted score
         if depth == 0:
-            predicted_scores = scoreEvaluationFunction(state.gameState)
+            predicted_scores = scoreEvaluationFunction(state.gameState, 0)
             state.score = np.nanmin(predicted_scores)
             # print("depth limit action: ", state.action, " score: ", state.score)
             return state
 
         # get legal actions of current state
-        for action in state.gameState.getLegalActions():
-            new_state = StateNode(action, float('inf'), state.gameState.generatePacmanSuccessor(action))
+        for action in state.gameState.getLegalActions(0):
+            new_state = StateNode(action, float('inf'), state.gameState.generateSuccessor(0, action))
             new_state = self.generateMinNode(alpha, beta, new_state, depth-1)
             # print("successor")
             # print("action: ", action, " score: ", new_state.score)
@@ -261,7 +261,7 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
 
         # if reached depth limit, get max predicted score
         if depth == 0:
-            predicted_scores = scoreEvaluationFunction(state.gameState)
+            predicted_scores = scoreEvaluationFunction(state.gameState, 1)
             state.score = np.nanmax(predicted_scores)
             # print("depth limit score ", state.score)
             return state
@@ -304,6 +304,7 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
         """
         Returns the minimax action
         """
+        print("pacman:")
         print("path", self.path)
         # if path is empty, generate tree and get path
         if not self.path:
