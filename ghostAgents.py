@@ -101,7 +101,8 @@ def scoreEvaluationFunction(currentGameState, agentIndex):
     This evaluation function is meant for use with adversarial search agents
     (not reflex agents).
     """
-    directionsList = ['West', 'East', 'North', 'South']
+    # directionsList = ['West', 'East', 'North', 'South']
+    directionsList = ['North', 'East', 'South', 'West']
     legalMoves = currentGameState.getLegalActions(agentIndex)
 
     scores = []
@@ -143,6 +144,7 @@ class MultiAgentSearchAgent(Agent):
         # self.evaluationFunction = util.lookup(evalFn, globals())
         self.depth = int(depth)
         self.path = []
+        self.previousLocs = [None, None]
 
 
 class AlphaBetaGhostAgent(MultiAgentSearchAgent):
@@ -161,22 +163,18 @@ class AlphaBetaGhostAgent(MultiAgentSearchAgent):
         if depth == 0:
             predicted_scores = scoreEvaluationFunction(state.gameState, 0)
             state.score = np.nanmax(predicted_scores)
-            # print("depth limit action: ", state.action, " score: ", state.score)
             return state
 
         # get legal actions of current state
-        for action in state.gameState.getLegalActions():
+        for action in state.gameState.getLegalActions(0):
             new_state = StateNode(action, float('inf'), state.gameState.generatePacmanSuccessor(action))
             new_state = self.generateMinNode(alpha, beta, new_state, depth-1)
-            # print("successor")
-            # print("action: ", action, " score: ", new_state.score)
             state.successors.append(new_state)
             if new_state.score > state.score:
                 state.score = new_state.score
 
             # prune
             if state.score >= beta:
-                # print("pruned ", state.score, " >= ", beta)
                 return state
 
             # set alpha if not pruned
@@ -194,28 +192,22 @@ class AlphaBetaGhostAgent(MultiAgentSearchAgent):
         if depth == 0:
             predicted_scores = scoreEvaluationFunction(state.gameState, 1)
             state.score = np.nanmin(predicted_scores)
-            # print("depth limit score ", state.score)
             return state
 
         # get legal actions of current state
         for action in state.gameState.getLegalActions(1):
-            new_state = StateNode(action, float('-inf'), state.gameState.generateSuccessor(self.index, action))
+            new_state = StateNode(action, float('-inf'), state.gameState.generateSuccessor(1, action))
             new_state = self.generateMaxNode(alpha, beta, new_state, depth - 1)
-            # print("successor")
-            # print("action: ", action, " score: ", new_state.score)
             state.successors.append(new_state)
             if new_state.score < state.score:
                 state.score = new_state.score
 
             # prune
             if state.score <= alpha:
-                # print("pruned ", state.score, " <= ", alpha)
                 return state
 
             # set beta if not pruned
             beta = min(state.score, beta)
-        # for s in state.successors:
-        #     print("Successor action: ", s.action, " score: ", s.score)
         return state
 
     def generatePath(self, node):
@@ -223,31 +215,28 @@ class AlphaBetaGhostAgent(MultiAgentSearchAgent):
 
         while node.successors:
             scores = [s.score for s in node.successors]
-            print("ghost:", scores)
             if is_max:
                 max_state = max(node.successors, key=lambda s: s.score)
                 node = max_state
             else:
                 min_state = min(node.successors, key=lambda s: s.score)
+                pos = min_state.gameState.getGhostPosition(1)
+                if len(node.successors) > 1 and (min_state.gameState.isLose() or pos == self.previousLocs.pop(0)):
+                    node.successors.remove(min_state)
+                    min_state = min(node.successors, key=lambda s: s.score)
+                self.previousLocs.append(min_state.gameState.getGhostPosition(1))
                 self.path.append(min_state.action)
                 node = min_state
-                # min_score = min(scores)
-                # best_indices = [index for index in range(len(scores)) if scores[index] == min_score]
-                # chosen_index = random.choice(best_indices)  # Pick randomly among the best
-                # node = node.successors[chosen_index]
-                # self.path.append(node.action)
             is_max = not is_max
 
     def getAction(self, gameState):
         """
         Returns the minimax action
         """
-        print("ghost:")
-        print("path", self.path)
         # if path is empty, generate tree and get path
         if not self.path:
             root = StateNode(Directions.STOP, float('-inf'), gameState)
-            tree = self.generateMinNode(float('inf'), float('-inf'), root, self.depth*2 - 1)
+            tree = self.generateMinNode(float('-inf'), float('inf'), root, self.depth*2 - 1)
 
             self.generatePath(tree)
 
