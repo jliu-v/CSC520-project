@@ -680,6 +680,9 @@ def runGames(layout, pacman, ghosts, display, numGames, record, numTraining=0, c
     games = []
 
     for i in range(numGames):
+        # Reset pacman path and previous locations at the beginning of each game
+        setattr(pacman, 'path', [])
+        setattr(pacman, 'previousLocs', [None, None])
         beQuiet = i < numTraining
         if beQuiet:
                 # Suppress output and graphics
