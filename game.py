@@ -27,6 +27,7 @@ import traceback
 import sys
 import numpy as np
 
+
 #######################
 # Parts worth reading #
 #######################
@@ -60,9 +61,9 @@ class Directions:
 
     LEFT = {NORTH: WEST,
             SOUTH: EAST,
-            EAST:  NORTH,
-            WEST:  SOUTH,
-            STOP:  STOP}
+            EAST: NORTH,
+            WEST: SOUTH,
+            STOP: STOP}
 
     RIGHT = dict([(y, x) for x, y in list(LEFT.items())])
 
@@ -107,7 +108,7 @@ class Configuration:
         return hash(x + 13 * y)
 
     def __str__(self):
-        return "(x,y)="+str(self.pos)+", "+str(self.direction)
+        return "(x,y)=" + str(self.pos) + ", " + str(self.direction)
 
     def generateSuccessor(self, vector):
         """
@@ -122,7 +123,7 @@ class Configuration:
         direction = Actions.vectorToDirection(vector)
         if direction == Directions.STOP:
             direction = self.direction  # There is no stop direction
-        return Configuration((x + dx, y+dy), direction)
+        return Configuration((x + dx, y + dy), direction)
 
 
 class AgentState:
@@ -300,6 +301,7 @@ def reconstituteGrid(bitRep):
     width, height = bitRep[:2]
     return Grid(width, height, bitRepresentation=bitRep[2:])
 
+
 ####################################
 # Parts you shouldn't have to read #
 ####################################
@@ -313,8 +315,8 @@ class Actions:
     _directions = {Directions.NORTH: (0, 1),
                    Directions.EAST: (1, 0),
                    Directions.SOUTH: (0, -1),
-                   Directions.WEST:  (-1, 0),
-                   Directions.STOP:  (0, 0)}
+                   Directions.WEST: (-1, 0),
+                   Directions.STOP: (0, 0)}
 
     _directionsAsList = [('North', (0, 1)), ('East', (1, 0)), ('South', (0, -1)), ('West', (-1, 0)), ('Stop', (0, 0))]
 
@@ -330,6 +332,7 @@ class Actions:
         if action == Directions.WEST:
             return Directions.EAST
         return action
+
     reverseDirection = staticmethod(reverseDirection)
 
     def vectorToDirection(vector):
@@ -343,11 +346,13 @@ class Actions:
         if dx > 0:
             return Directions.EAST
         return Directions.STOP
+
     vectorToDirection = staticmethod(vectorToDirection)
 
     def directionToVector(direction, speed=1.0):
         dx, dy = Actions._directions[direction]
         return (dx * speed, dy * speed)
+
     directionToVector = staticmethod(directionToVector)
 
     def getPossibleActions(config, walls):
@@ -385,12 +390,14 @@ class Actions:
             if not walls[next_x][next_y]:
                 neighbors.append((next_x, next_y))
         return neighbors
+
     getLegalNeighbors = staticmethod(getLegalNeighbors)
 
     def getSuccessor(position, action):
         dx, dy = Actions.directionToVector(action)
         x, y = position
         return (x + dx, y + dy)
+
     getSuccessor = staticmethod(getSuccessor)
 
 
@@ -459,7 +466,8 @@ class GameStateData:
             except TypeError as e:
                 print(e)
                 # hash(state)
-        return int((hash(tuple(self.agentStates)) + 13*hash(self.food) + 113 * hash(tuple(self.capsules)) + 7 * hash(self.score)) % 1048575)
+        return int((hash(tuple(self.agentStates)) + 13 * hash(self.food) + 113 * hash(tuple(self.capsules)) + 7 * hash(
+            self.score)) % 1048575)
 
     def __str__(self):
         width, height = self.layout.width, self.layout.height
@@ -520,7 +528,7 @@ class GameStateData:
         Creates an initial game state from a layout array (see layout.py).
         """
         self.food = layout.food.copy()
-        #self.capsules = []
+        # self.capsules = []
         self.capsules = layout.capsules[:]
         self.layout = layout
         self.score = 0
@@ -541,6 +549,7 @@ class GameStateData:
 
 try:
     import boinc
+
     _BOINC_ENABLED = True
 except:
     _BOINC_ENABLED = False
@@ -550,6 +559,7 @@ class Game:
     """
     The Game manages the control flow, soliciting actions from agents.
     """
+    batch_size = 100
 
     def __init__(self, agents, display, rules, startingIndex=0, muteAgents=False, catchExceptions=False):
         self.agentCrashed = False
@@ -791,11 +801,11 @@ class Game:
                 act = np.array(agent.action_mapping[action])
                 agent.replay_buffer.add(obs0, act, reward, obs1, self.gameOver)
                 # TODO: change 1000 to configurable batch_size
-                batch_size = 1000
-                if agent.replay_buffer._next_idx % batch_size == 0:
+                if agent.replay_buffer._next_idx % Game.batch_size == 0:
+                    Game.batch_size = min(Game.batch_size + 200, 1000)
                     e = []
                     for _ in range(5):
-                        e.append(agent.train_rl_model(batch_size))
+                        e.append(agent.train_rl_model(Game.batch_size))
                     print("errpr:", np.mean(e), "game_score/reward: ", reward)
 
         # inform a learning agent of the game result
