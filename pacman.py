@@ -291,8 +291,10 @@ class ClassicGameRules:
         # TODO
         from contrib.util import state_to_obs_tensor
         observation_shape = state_to_obs_tensor(initState).shape
-        agents[0].create_rl_model(observation_shape, network='my_cnn', lr=1e-3, gamma=1.0, param_noise=False)
-        agents[0].create_replay_buffer(buffer_size=10000)
+        if agents[0].rl_model is None:
+            agents[0].create_rl_model(observation_shape, network='my_cnn', lr=1e-3, gamma=1.0, param_noise=False)
+        if agents[0].replay_buffer is None:
+            agents[0].create_replay_buffer(buffer_size=10000)
         ######
         game = Game(agents, display, self, catchExceptions=catchExceptions)
         game.state = initState
