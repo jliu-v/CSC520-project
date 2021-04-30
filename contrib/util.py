@@ -45,7 +45,7 @@ def my_nature_cnn(input_shape, **conv_kwargs):
                               name='fc1', activation='relu')(h)
     # delta = tf.sparse.SparseTensor(indices=[-1], values=[-10], dense_shape=tf.shape(h))
     # h = h + delta
-    h = tf.keras.layers.Softmax(h)
+    h = tf.keras.layers.Softmax()(h)
     network = tf.keras.Model(inputs=[x_input], outputs=[h])
     return network
 
