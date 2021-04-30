@@ -259,7 +259,8 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
 
         # if reached depth limit, get max predicted score
         if depth == 0:
-            predicted_scores = scoreEvaluationFunction(state.gameState, 0)
+            # predicted_scores = scoreEvaluationFunction(state.gameState, 0)
+            predicted_scores = self.evaluation_fn(state.gameState)
             state.score = np.nanmax(predicted_scores)
             # print("depth limit action: ", state.action, " score: ", state.score)
             return state
@@ -321,7 +322,8 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
 
         # if reached depth limit, get min predicted score
         if depth == 0:
-            predicted_scores = scoreEvaluationFunction(state.gameState, 1)
+            #predicted_scores = scoreEvaluationFunction(state.gameState, 1)
+            predicted_scores = self.evaluation_fn(state.gameState)
             state.score = np.nanmin(predicted_scores)
             # print("depth limit score ", state.score)
             return state
