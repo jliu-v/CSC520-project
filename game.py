@@ -608,6 +608,11 @@ class Game:
         self.display.initialize(self.state.data)
         self.numMoves = 0
 
+        # keep track of pacman action times and number of pacman moves
+        action_times = []
+        pacman_moves = 0
+
+
         # self.display.initialize(self.state.makeObservation(1).data)
         # inform learning agents of the game start
         for i in range(len(self.agents)):
@@ -729,7 +734,17 @@ class Game:
                     self.unmute()
                     return
             else:
-                action = agent.getAction(observation)
+                # Get the time taken to retrieve a pacman action
+                if agentIndex == 0:
+                    # increment number of moves for pacman
+                    pacman_moves += 1
+                    # get start time of getAction
+                    start_action_time = time.time()
+                    action = agent.getAction(observation)
+                    # store end time of getAction
+                    action_times.append(time.time() - start_action_time)
+                else:
+                    action = agent.getAction(observation)
             self.unmute()
 
             # Execute the action
@@ -776,3 +791,7 @@ class Game:
                     self.unmute()
                     return
         self.display.finish()
+
+        # print number of pacman moves and average game time to file
+        output = open('recorded-game.txt', 'a')
+        output.write('%d,%.2f,' % (pacman_moves, sum(action_times) / len(action_times)))
