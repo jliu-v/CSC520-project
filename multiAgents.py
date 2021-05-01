@@ -210,6 +210,8 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
             param_noise=param_noise
         )
 
+        self.update_target_network()
+
     def create_replay_buffer(self, buffer_size):
         from baselines.deepq.replay_buffer import ReplayBuffer
         self.replay_buffer = ReplayBuffer(buffer_size)
@@ -222,6 +224,9 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
         weights = tf.constant(weights)
         td_errors = self.rl_model.train(obses_t, actions, rewards, obses_tp1, dones, weights)
         return td_errors
+
+    def update_target_network(self):
+        self.rl_model.update_target()
 
     def generateMaxNode(self, alpha, beta, state, depth):
         """

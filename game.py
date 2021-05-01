@@ -612,7 +612,7 @@ class Game:
         sys.stdout = OLD_STDOUT
         sys.stderr = OLD_STDERR
 
-    def run(self):
+    def run(self, game_number):
         """
         Main control loop for game play.
         """
@@ -808,6 +808,9 @@ class Game:
                         e.append(agent.train_rl_model(Game.batch_size))
                     print("errpr:", np.mean(e), "game_score/reward: ", reward)
 
+                if agent.replay_buffer._next_idx % (10*Game.batch_size) == 0:
+                    agent.update_target_network()
+
         # inform a learning agent of the game result
         for agentIndex, agent in enumerate(self.agents):
             if "final" in dir(agent):
@@ -823,6 +826,11 @@ class Game:
                     return
         self.display.finish()
 
-        # print number of pacman moves and average game time to file
+        # write output log
         output = open('recorded-game.txt', 'a')
+        output.write('%d,' % game_number)
+        # print number of pacman moves and average game time to file
         output.write('%d,%.2f,' % (pacman_moves, sum(action_times) / len(action_times)))
+        # write score of current game to file
+        output.write('%d,%s\n' % (self.state.getScore(), ('Win' if self.state.isWin() else 'Loss')))
+        output.close()

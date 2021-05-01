@@ -292,7 +292,7 @@ class ClassicGameRules:
         from contrib.util import state_to_obs_tensor
         observation_shape = state_to_obs_tensor(initState).shape
         if agents[0].rl_model is None:
-            agents[0].create_rl_model(observation_shape, network='my_cnn', lr=1e-3, gamma=1.0, param_noise=False)
+            agents[0].create_rl_model(observation_shape, network='my_cnn', lr=1e-2, gamma=1.0, param_noise=False)
         if agents[0].replay_buffer is None:
             agents[0].create_replay_buffer(buffer_size=10000)
         ######
@@ -689,12 +689,8 @@ def runGames(layout, pacman, ghosts, display, numGames, record, numTraining=0, c
     games = []
 
     # record game stats
-    output = open('recorded-game.txt', 'a')
 
     for i in range(numGames):
-        # write game number
-        output.write('%d,' % (i+1))
-        output.flush()
 
         # Reset pacman path and previous locations at the beginning of each game
         setattr(pacman, 'path', [])
@@ -710,7 +706,7 @@ def runGames(layout, pacman, ghosts, display, numGames, record, numTraining=0, c
             rules.quiet = False
         game = rules.newGame(layout, pacman, ghosts,
                              gameDisplay, beQuiet, catchExceptions)
-        game.run()
+        game.run(game_number=i)
         if not beQuiet:
             games.append(game)
 
@@ -724,9 +720,6 @@ def runGames(layout, pacman, ghosts, display, numGames, record, numTraining=0, c
             pickle.dump(components, f)
             f.close()
 
-        # write score of current game to file
-        output.write('%d,%s\n' % (game.state.getScore(), ('Win' if game.state.isWin() else 'Loss')))
-
     if (numGames-numTraining) > 0:
         scores = [game.state.getScore() for game in games]
         wins = [game.state.isWin() for game in games]
@@ -738,8 +731,6 @@ def runGames(layout, pacman, ghosts, display, numGames, record, numTraining=0, c
         print('Record:       ', ', '.join(
             [['Loss', 'Win'][int(w)] for w in wins]))
 
-    # close file
-    output.close()
 
     return games
 
