@@ -253,7 +253,7 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
         elif self.model_type == "ppo":
             # when using ppo, we need to sample sequences
             seq_length = seq_length or 200
-            start = 0 if self.replay_buffer._next_idx >= len(self.replay_buffer._storage) else -self.replay_buffer._max_size + self.replay_buffer._next_idx
+            start = 0 if self.replay_buffer._next_idx >= len(self.replay_buffer._storage) else -self.replay_buffer._maxsize + self.replay_buffer._next_idx
             end = self.replay_buffer._next_idx - seq_length + 1
             sample_index = np.random.choice(np.arange(start, end), size=batch_size)
 
