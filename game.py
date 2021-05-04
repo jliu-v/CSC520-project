@@ -27,7 +27,6 @@ import traceback
 import sys
 import numpy as np
 
-
 #######################
 # Parts worth reading #
 #######################

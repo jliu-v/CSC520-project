@@ -47,6 +47,7 @@ def my_nature_cnn(input_shape, **conv_kwargs):
     h = tf.keras.layers.Dense(units=32, kernel_initializer=ortho_init(np.sqrt(2)),
                               name='fc2', activation='relu')(h)
 
+
     network = tf.keras.Model(inputs=[x_input], outputs=[h])
     return network
 
