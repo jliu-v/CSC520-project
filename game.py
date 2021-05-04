@@ -814,14 +814,18 @@ class Game:
 
                 elif agent.model_type == "ppo":
                     import tensorflow as tf
-                    value = agent.rl_model.train_model.value(np.expand_dims(obs0, axis=0))
+                    value = agent.rl_model.train_model.value(np.expand_dims(obs0, axis=0))[0].numpy()
                     latent = agent.rl_model.train_model.policy_network(np.expand_dims(obs0, axis=0))
                     pd, pi = agent.rl_model.train_model.pdtype.pdfromlatent(latent)
                     neglogp = pd.neglogp(tf.constant([act]))[0].numpy()
-                    agent.replay_buffer.add_data((obs0, act, reward, value, neglogp, self.gameOver, obs1))
+                    done1 = self.state.isWin() or self.state.isLose()
+                    agent.replay_buffer.add_data((obs0, act, reward, value, neglogp, self.gameOver, obs1, done1))
 
                     if agent.replay_buffer._next_idx % max(Game.batch_size, 200) == 0:
-                        agent.train_rl_model(Game.batch_size)
+                        e = []
+                        for _ in range(3):
+                            e.append([x.numpy() for x in agent.train_rl_model(Game.batch_size)])
+                        print("errpr:", np.mean(e, axis=0), "game_score/reward: ", reward)
 
         # inform a learning agent of the game result
         for agentIndex, agent in enumerate(self.agents):

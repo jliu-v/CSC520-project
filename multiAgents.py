@@ -19,6 +19,7 @@ import numpy as np
 import tensorflow as tf
 from operator import attrgetter
 from contrib.util import MyReplayBuffer
+from baselines.ppo2.runner import sf01
 
 
 from game import Agent
@@ -179,6 +180,7 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
         self.model_type = None
         self.rl_model = None
         self.replay_buffer = None
+        self.train_args = None
 
         from game import Actions
         self.action_mapping = {v[0]: i for i, v in enumerate(Actions._directionsAsList)}
@@ -211,6 +213,7 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
     def create_rl_model(self, model_type="dqn", model_args={}):
         self.model_type = model_type
         num_actions=len(self.action_mapping)
+        self.train_args = model_args.pop("train_args", {})
 
         if model_type == "dqn":
             from baselines.deepq.deepq_learner import DEEPQ
@@ -232,7 +235,6 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
                 network_type = network
                 policy_network_fn = get_network_builder(network_type)()
                 network = policy_network_fn(observation_shape)
-            self.lr = model_args.pop('lr', 1e-3)
             self.rl_model = PPO(ac_space=ac_space, policy_network=network, **model_args)
 
     def create_replay_buffer(self, buffer_size):
@@ -260,11 +262,12 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
             # np_replay_buffer = np.array(self.replay_buffer._storage)
             mb_obs, mb_rewards, mb_actions, mb_values, mb_dones, mb_neglogpacs = [],[],[],[],[],[]
             last_obs = None
+            done1 = None
             for i in range(seq_length):
                 # obs, act, reward, value, neglogp, done, obs1 = np_replay_buffer[sample_index+1].T
-                obs, act, reward, value, neglogp, done, obs1 = [],[],[],[],[],[],[]
+                obs, act, reward, value, neglogp, done, obs1, done1 = [],[],[],[],[],[],[], []
                 for j in sample_index:
-                    xobs, xact, xreward, xvalue, xneglogp, xdone, xobs1 = self.replay_buffer._storage[i+j]
+                    xobs, xact, xreward, xvalue, xneglogp, xdone, xobs1, xdone1 = self.replay_buffer._storage[i+j]
                     obs.append(xobs)
                     act.append(xact)
                     reward.append(xreward)
@@ -273,7 +276,8 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
                     done.append(xdone)
 
                     if i == seq_length - 1:
-                        obs1.append(obs1)
+                        obs1.append(xobs1)
+                        done1.append(xdone1)
 
                 mb_obs.append(obs)
                 mb_actions.append(act)
@@ -292,9 +296,29 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
             mb_values = np.asarray(mb_values, dtype=np.float32)
             mb_neglogpacs = np.asarray(mb_neglogpacs, dtype=np.float32)
             mb_dones = np.asarray(mb_dones, dtype=np.bool)
+            done1 = np.asarray(done1, dtype=np.bool)
             last_values = self.rl_model.value(tf.constant(last_obs))._numpy()
 
-            print(last_values)
+            # discount/bootstrap off value fn
+            mb_returns = np.zeros_like(mb_rewards)
+            mb_advs = np.zeros_like(mb_rewards)
+            lastgaelam = 0
+            gamma = self.train_args["gamma"]
+            lam = self.train_args["lam"]
+            lr = self.train_args["lr"]
+            cliprange = self.train_args["cliprange"]
+            for t in reversed(range(seq_length)):
+                if t == seq_length - 1:
+                    nextnonterminal = 1.0 - done1
+                    nextvalues = last_values
+                else:
+                    nextnonterminal = 1.0 - mb_dones[t+1]
+                    nextvalues = mb_values[t+1]
+                delta = mb_rewards[t] + gamma * nextvalues * nextnonterminal - mb_values[t]
+                mb_advs[t] = lastgaelam = delta + gamma * lam * nextnonterminal * lastgaelam
+            mb_returns = mb_advs + mb_values
+            slices = tuple(map(sf01, (mb_obs, mb_returns, mb_dones, mb_actions, mb_values, mb_neglogpacs)))
+            return self.rl_model.train(lr, cliprange, *slices)
 
     def update_target_network(self):
         self.rl_model.update_target()

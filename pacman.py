@@ -305,10 +305,14 @@ class ClassicGameRules:
             elif model_type == "ppo":
                 model_args = dict(observation_shape=observation_shape,
                                   network='my_cnn',
-                                  lr=1e-2,
                                   ent_coef=0.0,
                                   vf_coef=0.5,
-                                  max_grad_norm=0.5)
+                                  max_grad_norm=0.5,
+                                  train_args=dict(lr=1e-2,
+                                                  gamma=0.99,
+                                                  lam=0.95,
+                                                  cliprange=0.2)
+                                  )
             agents[0].create_rl_model(model_type=model_type, model_args=model_args)
         if agents[0].replay_buffer is None:
             agents[0].create_replay_buffer(buffer_size=10000)
