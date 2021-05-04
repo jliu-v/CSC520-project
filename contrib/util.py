@@ -3,6 +3,7 @@ import numpy as np
 import tensorflow as tf
 from baselines.a2c.utils import ortho_init, conv
 from baselines.common.models import register
+from baselines.deepq.replay_buffer import ReplayBuffer
 
 FRAMES = ['food', 'wall', 'capsule', 'pacman', 'ghost']
 
@@ -41,11 +42,11 @@ def my_nature_cnn(input_shape, **conv_kwargs):
     h = x_input
     h = conv('c1', nf=8, rf=4, stride=1, activation='relu', init_scale=np.sqrt(2))(h)
     h = tf.keras.layers.Flatten()(h)
-    h = tf.keras.layers.Dense(units=512, kernel_initializer=ortho_init(np.sqrt(2)),
+    h = tf.keras.layers.Dense(units=64, kernel_initializer=ortho_init(np.sqrt(2)),
                               name='fc1', activation='relu')(h)
-    # delta = tf.sparse.SparseTensor(indices=[-1], values=[-10], dense_shape=tf.shape(h))
-    # h = h + delta
-    h = tf.keras.layers.Softmax()(h)
+    h = tf.keras.layers.Dense(units=32, kernel_initializer=ortho_init(np.sqrt(2)),
+                              name='fc2', activation='relu')(h)
+
     network = tf.keras.Model(inputs=[x_input], outputs=[h])
     return network
 
@@ -54,4 +55,15 @@ def my_nature_cnn(input_shape, **conv_kwargs):
 def my_cnn(**conv_kwargs):
     def network_fn(input_shape):
         return my_nature_cnn(input_shape, **conv_kwargs)
+
     return network_fn
+
+
+class MyReplayBuffer(ReplayBuffer):
+    def add_data(self, data):
+
+        if self._next_idx >= len(self._storage):
+            self._storage.append(data)
+        else:
+            self._storage[self._next_idx] = data
+        self._next_idx = (self._next_idx + 1) % self._maxsize

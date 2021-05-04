@@ -291,8 +291,25 @@ class ClassicGameRules:
         # TODO
         from contrib.util import state_to_obs_tensor
         observation_shape = state_to_obs_tensor(initState).shape
+        model_type = "ppo"
+        if model_type == "ppo":
+            Game.batch_size = 1
         if agents[0].rl_model is None:
-            agents[0].create_rl_model(observation_shape, network='my_cnn', lr=1e-2, gamma=1.0, param_noise=False)
+            model_args = {}
+            if model_type == "dqn":
+                model_args = dict(observation_shape=observation_shape,
+                                  network='my_cnn',
+                                  lr=1e-2,
+                                  gamma=1.0,
+                                  param_noise=False)
+            elif model_type == "ppo":
+                model_args = dict(observation_shape=observation_shape,
+                                  network='my_cnn',
+                                  lr=1e-2,
+                                  ent_coef=0.0,
+                                  vf_coef=0.5,
+                                  max_grad_norm=0.5)
+            agents[0].create_rl_model(model_type=model_type, model_args=model_args)
         if agents[0].replay_buffer is None:
             agents[0].create_replay_buffer(buffer_size=10000)
         ######

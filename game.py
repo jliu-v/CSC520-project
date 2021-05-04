@@ -798,18 +798,31 @@ class Game:
                 reward = self.state.getScore()
                 obs0 = state_to_obs_tensor(observation)
                 obs1 = state_to_obs_tensor(self.state)
-                act = np.array(agent.action_mapping[action])
-                agent.replay_buffer.add(obs0, act, reward, obs1, self.gameOver)
-                # TODO: change 1000 to configurable batch_size
-                if agent.replay_buffer._next_idx % Game.batch_size == 0:
-                    Game.batch_size = min(Game.batch_size + 200, 1000)
-                    e = []
-                    for _ in range(5):
-                        e.append(agent.train_rl_model(Game.batch_size))
-                    print("errpr:", np.mean(e), "game_score/reward: ", reward)
+                act = agent.action_mapping[action]
 
-                if agent.replay_buffer._next_idx % (10*Game.batch_size) == 0:
-                    agent.update_target_network()
+                if agent.model_type == "dqn":
+                    agent.replay_buffer.add_data((obs0, act, reward, obs1, self.gameOver))[0].numpy()
+                    # TODO: change 1000 to configurable batch_size
+                    if agent.replay_buffer._next_idx % Game.batch_size == 0:
+                        e = []
+                        for _ in range(5):
+                            e.append(agent.train_rl_model(Game.batch_size))
+                        print("errpr:", np.mean(e), "game_score/reward: ", reward)
+
+                        if agent.replay_buffer._next_idx % (10*Game.batch_size) == 0:
+                            agent.update_target_network()
+                        Game.batch_size = min(Game.batch_size + 200, 1000)
+
+                elif agent.model_type == "ppo":
+                    import tensorflow as tf
+                    value = agent.rl_model.train_model.value(np.expand_dims(obs0, axis=0))
+                    latent = agent.rl_model.train_model.policy_network(np.expand_dims(obs0, axis=0))
+                    pd, pi = agent.rl_model.train_model.pdtype.pdfromlatent(latent)
+                    neglogp = pd.neglogp(tf.constant([act]))[0].numpy()
+                    agent.replay_buffer.add_data((obs0, act, reward, value, neglogp, self.gameOver, obs1))
+
+                    if agent.replay_buffer._next_idx % max(Game.batch_size, 200) == 0:
+                        agent.train_rl_model(Game.batch_size)
 
         # inform a learning agent of the game result
         for agentIndex, agent in enumerate(self.agents):
@@ -827,7 +840,7 @@ class Game:
         self.display.finish()
 
         # write output log
-        output = open('recorded-game.txt', 'a')
+        output = open(f'recorded-game-{self.agents[0].model_type}-test.txt', 'a')
         output.write('%d,' % game_number)
         # print number of pacman moves and average game time to file
         output.write('%d,%.2f,' % (pacman_moves, sum(action_times) / len(action_times)))

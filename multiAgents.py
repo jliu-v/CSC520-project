@@ -18,6 +18,7 @@ import random, util
 import numpy as np
 import tensorflow as tf
 from operator import attrgetter
+from contrib.util import MyReplayBuffer
 
 
 from game import Agent
@@ -175,6 +176,7 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
     def __init__(self, **kwargs):
         super(AlphaBetaAgent, self).__init__(**kwargs)
 
+        self.model_type = None
         self.rl_model = None
         self.replay_buffer = None
 
@@ -183,9 +185,19 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
         self.action_mapping_reverse = {v: k for k, v in self.action_mapping.items()}
 
     def evaluation_fn(self, currentGameState):
-        from contrib.util import state_to_obs_tensor
-        obs = state_to_obs_tensor(currentGameState)
-        scores = self.rl_model.q_network(np.expand_dims(obs, axis=0))[0].numpy()
+        if self.model_type == "dqn":
+            from contrib.util import state_to_obs_tensor
+            obs = state_to_obs_tensor(currentGameState)
+            scores = self.rl_model.q_network(np.expand_dims(obs, axis=0))[0].numpy()
+
+        elif self.model_type == "ppo":
+            from contrib.util import state_to_obs_tensor
+            obs = state_to_obs_tensor(currentGameState)
+            latent = self.rl_model.train_model.policy_network(np.expand_dims(obs, axis=0))
+            pd, pi = self.rl_model.train_model.pdtype.pdfromlatent(latent)
+            scores = pi[0].numpy()
+        else:
+            scores = scoreEvaluationFunction(currentGameState, 0)
 
         legalMoves = currentGameState.getLegalActions()
 
@@ -195,35 +207,94 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
 
         return scores
 
-    def create_rl_model(self, observation_shape, network='cnn', lr=1e-3, gamma=1.0, param_noise=False):
-        from baselines.deepq.deepq_learner import DEEPQ
-        from baselines.deepq.models import build_q_func
-        q_func = build_q_func(network)
+    # def create_rl_model(self, model_type="dqn", observation_shape, network='cnn', lr=1e-3, grad_norm_clipping=10, gamma=1.0, param_noise=False):
+    def create_rl_model(self, model_type="dqn", model_args={}):
+        self.model_type = model_type
+        num_actions=len(self.action_mapping)
 
-        self.rl_model = DEEPQ(
-            q_func=q_func,
-            observation_shape=observation_shape,
-            num_actions=len(self.action_mapping),
-            lr=lr,
-            grad_norm_clipping=10,
-            gamma=gamma,
-            param_noise=param_noise
-        )
+        if model_type == "dqn":
+            from baselines.deepq.deepq_learner import DEEPQ
+            from baselines.deepq.models import build_q_func
+            q_func = build_q_func(model_args.pop("network", "cnn"), hiddens=[16])
 
-        self.update_target_network()
+            self.rl_model = DEEPQ(q_func=q_func, num_actions=num_actions, **model_args)
+
+            self.update_target_network()
+        elif model_type == "ppo":
+            from baselines.ppo2.model import Model as PPO
+            from baselines.common.models import get_network_builder
+            import gym
+            ac_space = gym.spaces.Discrete(num_actions)
+            network = model_args.pop("network", "cnn")
+            observation_shape = model_args.pop("observation_shape", "cnn")
+
+            if isinstance(network, str):
+                network_type = network
+                policy_network_fn = get_network_builder(network_type)()
+                network = policy_network_fn(observation_shape)
+            self.lr = model_args.pop('lr', 1e-3)
+            self.rl_model = PPO(ac_space=ac_space, policy_network=network, **model_args)
 
     def create_replay_buffer(self, buffer_size):
-        from baselines.deepq.replay_buffer import ReplayBuffer
-        self.replay_buffer = ReplayBuffer(buffer_size)
+        self.replay_buffer = MyReplayBuffer(buffer_size)
 
-    def train_rl_model(self, batch_size):
-        obses_t, actions, rewards, obses_tp1, dones = self.replay_buffer.sample(batch_size)
-        weights, batch_idxes = np.ones_like(rewards), None
-        obses_t, obses_tp1 = tf.constant(obses_t), tf.constant(obses_tp1)
-        actions, rewards, dones = tf.constant(actions), tf.constant(rewards), tf.constant(dones)
-        weights = tf.constant(weights)
-        td_errors = self.rl_model.train(obses_t, actions, rewards, obses_tp1, dones, weights)
-        return td_errors
+    def train_rl_model(self, batch_size, seq_length=None):
+        if self.model_type == "dqn":
+            # when using dqn, we only need to sample atomic states
+            obses_t, actions, rewards, obses_tp1, dones = self.replay_buffer.sample(batch_size)
+            weights, batch_idxes = np.ones_like(rewards), None
+            obses_t, obses_tp1 = tf.constant(obses_t), tf.constant(obses_tp1)
+            actions, rewards, dones = tf.constant(actions), tf.constant(rewards), tf.constant(dones)
+            weights = tf.constant(weights)
+            td_errors = self.rl_model.train(obses_t, actions, rewards, obses_tp1, dones, weights)
+            return td_errors
+        elif self.model_type == "ppo":
+            # when using ppo, we need to sample sequences
+            seq_length = seq_length or 200
+            start = 0 if self.replay_buffer._next_idx >= len(self.replay_buffer._storage) else -self.replay_buffer._max_size + self.replay_buffer._next_idx
+            end = self.replay_buffer._next_idx - seq_length + 1
+            sample_index = np.random.choice(np.arange(start, end), size=batch_size)
+
+            # Note: variation of runner.run() to collect and process experiences
+            # Here, we init the lists that will contain the mb of experiences
+            # np_replay_buffer = np.array(self.replay_buffer._storage)
+            mb_obs, mb_rewards, mb_actions, mb_values, mb_dones, mb_neglogpacs = [],[],[],[],[],[]
+            last_obs = None
+            for i in range(seq_length):
+                # obs, act, reward, value, neglogp, done, obs1 = np_replay_buffer[sample_index+1].T
+                obs, act, reward, value, neglogp, done, obs1 = [],[],[],[],[],[],[]
+                for j in sample_index:
+                    xobs, xact, xreward, xvalue, xneglogp, xdone, xobs1 = self.replay_buffer._storage[i+j]
+                    obs.append(xobs)
+                    act.append(xact)
+                    reward.append(xreward)
+                    value.append(xvalue)
+                    neglogp.append(xneglogp)
+                    done.append(xdone)
+
+                    if i == seq_length - 1:
+                        obs1.append(obs1)
+
+                mb_obs.append(obs)
+                mb_actions.append(act)
+                mb_rewards.append(reward)
+                mb_values.append(value)
+                mb_neglogpacs.append(neglogp)
+                mb_dones.append(done)
+
+                if i == seq_length - 1:
+                    last_obs = obs1
+
+            # batch of steps to batch of rollouts
+            mb_obs = np.asarray(mb_obs, dtype=np.float32)
+            mb_rewards = np.asarray(mb_rewards, dtype=np.float32)
+            mb_actions = np.asarray(mb_actions)
+            mb_values = np.asarray(mb_values, dtype=np.float32)
+            mb_neglogpacs = np.asarray(mb_neglogpacs, dtype=np.float32)
+            mb_dones = np.asarray(mb_dones, dtype=np.bool)
+            last_values = self.rl_model.value(tf.constant(last_obs))._numpy()
+
+            print(last_values)
 
     def update_target_network(self):
         self.rl_model.update_target()
