@@ -679,13 +679,8 @@ def runGames(layout, pacman, ghosts, display, numGames, record, numTraining=0, c
     rules = ClassicGameRules(timeout)
     games = []
 
-    # record game stats
-    output = open('recorded-game.txt', 'a')
 
     for i in range(numGames):
-        # write game number
-        output.write('%d,' % (i+1))
-        output.flush()
 
         # Reset pacman path and previous locations at the beginning of each game
         setattr(pacman, 'path', [])
@@ -701,7 +696,7 @@ def runGames(layout, pacman, ghosts, display, numGames, record, numTraining=0, c
             rules.quiet = False
         game = rules.newGame(layout, pacman, ghosts,
                              gameDisplay, beQuiet, catchExceptions)
-        game.run()
+        game.run(i)
         if not beQuiet:
             games.append(game)
 
@@ -715,9 +710,6 @@ def runGames(layout, pacman, ghosts, display, numGames, record, numTraining=0, c
             pickle.dump(components, f)
             f.close()
 
-        # write score of current game to file
-        output.write('%d,%s\n' % (game.state.getScore(), ('Win' if game.state.isWin() else 'Loss')))
-
     if (numGames-numTraining) > 0:
         scores = [game.state.getScore() for game in games]
         wins = [game.state.isWin() for game in games]
@@ -729,8 +721,6 @@ def runGames(layout, pacman, ghosts, display, numGames, record, numTraining=0, c
         print('Record:       ', ', '.join(
             [['Loss', 'Win'][int(w)] for w in wins]))
 
-    # close file
-    output.close()
 
     return games
 
