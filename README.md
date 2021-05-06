@@ -5,7 +5,7 @@ Pacman Game using Minimax with Alpha Beta Pruning, Semi-online Search, and Reinf
 - Junfeng Liu (jliu85)
 - Fangtong Zhou (fzhou)
 ## Source
-This project environment is from the UC Berkeley CS188 class implementation of Pacman: https://inst.eecs.berkeley.edu/~cs188/fa18/project2.html.
+This Pacman game environment was developed by John DeNero, Dan Klein, Pieter Abbeel, and many others for the [UC Berkeley](http://ai.berkeley.edu) CS188 course. See https://inst.eecs.berkeley.edu/~cs188/fa18/project2.html.
 ## Prerequisites
 - Download this project
 - Install OpenAI Baselines library
@@ -23,3 +23,14 @@ This project environment is from the UC Berkeley CS188 class implementation of P
   - `-g` is the ghost agent. We chose to use the `DirectionalGhost` agent which decide on their actions based on their Manhattan distance to Pacman.
   - `-n` is the number of game runs. We ran 350 games for the experiment.
   - `-q` is quietTextGraphics mode which generates minimal output and no graphics. This allows us to run the experiments faster and with less overhead. Users can leave this out and run a smaller number of games to see the agent in action.
+
+## Contributions
+As mentioned earlier, this project game environment was sourced. Here are our modifications and contributions to the environment for our project:
+- MultiAgents.py
+  - Function scoreEvaluationFunction()
+  - Class AlphaBetaAgent()
+- contrib/util.py
+- game.py
+  - Game.run(): added replay buffer for RL training and record game results
+- pacman.py
+  - ClassicGameRules.newGame()
