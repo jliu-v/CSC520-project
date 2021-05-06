@@ -9,9 +9,9 @@ This Pacman game environment was developed by John DeNero, Dan Klein, Pieter Abb
 ## Prerequisites
 - Download this project
 - Install OpenAI Baselines library
-  - Download and unzip the _baseline_ repository from this link: https://github.com/openai/baselines/tree/tf2
-  - Change directory into the `baseline` directory and run `pip install -e .`
-      - If you get errors, ensure prerequisites of the OpenAI Baseline project are met and TensorFlow is installed: https://github.com/openai/baselines/tree/tf2#prerequisites
+  - Download and unzip the _baselines_ repository from this link: https://github.com/openai/baselines/tree/tf2
+  - Change directory into the `baselines` directory and run `pip install -e .`
+      - If you get errors, ensure prerequisites of the OpenAI Baselines project are met and TensorFlow is installed: https://github.com/openai/baselines/tree/tf2#prerequisites
 
 ## Run Game
 - To run the game in interactive mode, run `python pacman.py`
@@ -28,9 +28,18 @@ This Pacman game environment was developed by John DeNero, Dan Klein, Pieter Abb
 As mentioned earlier, this project game environment was sourced. Here are our modifications and contributions to the environment for our project:
 - MultiAgents.py
   - Function scoreEvaluationFunction()
+    - Implementation baseline agent accessing scores of legal actions
   - Class AlphaBetaAgent()
+    - Implementation of Alpha-Beta Pruning with depth limited semi-online search
+    - Implementation of search path construction within the depth limit
+    - Implementation of RL models (DQN/PPO) initialization and training
 - contrib/util.py
+    - Implementation of state perception function
 - game.py
-  - Game.run(): added replay buffer for RL training and record game results
+  - Game.run()
+    - Implementation of adding agent experience to replay buffer
+    - Implementation of triggering RL training 
+    - Implementation of recording game results
 - pacman.py
   - ClassicGameRules.newGame()
+    - Implementation of RL model instantiation and hyper-parameters
