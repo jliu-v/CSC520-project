@@ -1,5 +1,11 @@
 # CSC520 Project  
 Pacman Game using Minimax with Alpha Beta Pruning, Semi-online Search, and Reinforcement Learning
+## Team members
+- Tanya Chu (wchu2)
+- Junfeng Liu (jliu85)
+- Fangtong Zhou (fzhou)
+## Source
+This project environment is from the UC Berkeley CS188 class implementation of Pacman: https://inst.eecs.berkeley.edu/~cs188/fa18/project2.html.
 ## Prerequisites
 - Download this project
 - Install OpenAI Baselines library
